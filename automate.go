@@ -81,10 +81,14 @@ func main() {
 	if (Miner{}) == thisMiner {
 		log.Fatalf("Unable to locate this miner in the database: " + config.MinerName)
 	}
+	err = tx.Commit().Error // Commit changes to the database
+	if err != nil {
+		log.Fatalf("Issue committing changes.\n", err)
+	}
 
 	// Determine the best software/algorithm for this miner.
 	log.Println("Determining optimal software/algo combination...")
-	bestSoftwareAlgo := getBestSoftwareAlgo(tx, minerID, config.UseEstimates)
+	bestSoftwareAlgo := getBestSoftwareAlgo(db, minerID, config.UseEstimates)
 	// Generate parameters and get the file path for the first run.
 	params, filePath := changeAlgoGetParams(db, &thisMiner, bestSoftwareAlgo, config)
 	// Kick off the mining software for the first time.
@@ -95,24 +99,18 @@ func main() {
 		// Wait in between optimization checks.
 		time.Sleep(time.Duration(config.OptimizationCheckTime) * time.Second)
 
-		optimizationAlgo := getBestSoftwareAlgo(tx, minerID, config.UseEstimates)
+		optimizationAlgo := getBestSoftwareAlgo(db, minerID, config.UseEstimates)
 		// Is the best algo a change?
 		if optimizationAlgo.ID != thisMiner.MinerSoftwareAlgoID {
 			proc.Kill() // Stop the current mining process.
 			proc.Wait() // Wait for everything to stop.
 			// Generate parameters and get the file path for the next run.
 			// Also, set the active software/algo on the miner.
-			params, filePath := changeAlgoGetParams(db, &thisMiner, bestSoftwareAlgo, config)
+			params, filePath := changeAlgoGetParams(db, &thisMiner, optimizationAlgo, config)
 			// Kick off the mining software again.
 			proc = openProcess(filePath, params)
 		}
 	}
-
-	err = tx.Commit().Error // Commit changes to the database
-	if err != nil {
-		log.Fatalf("Issue committing changes.\n", err)
-	}
-
 }
 
 // Change the algorithm on the miner in the database and also generate the parameters necessary for
@@ -194,28 +192,28 @@ func changeAlgoGetParams(db *gorm.DB, miner *Miner, bestSoftwareAlgo MinerSoftwa
 }
 
 // Determine the best software/algo for a miner by examining the most profitable combination.
-// @param tx - The active database transaction
+// @param tx - The active database connection
 // @param minerID - The ID for the active miner
 // @param useEstimates - If this is 1, the 24 hour estimate is utilized for profit comparisons. If 0, the
 //    24-hour actuals are used.
 // @returns The best software/algo
-func getBestSoftwareAlgo(tx *gorm.DB, minerID uint64, useEstimates uint8) MinerSoftwareAlgos {
+func getBestSoftwareAlgo(db *gorm.DB, minerID uint64, useEstimates uint8) MinerSoftwareAlgos {
 	// Define subquery to get the average work_per_second for the miner/software/algos.
 	subAvgWork :=
-		tx.Select("miner_id, miner_software_id, algorithm_id, "+
+		db.Select("miner_id, miner_software_id, algorithm_id, "+
 			"AVG(work_per_second) AS average_work, mh_factor").
 			Where("miner_id = ?", minerID).
 			Group("miner_id, miner_software_id, algorithm_id, mh_factor").
 			Table("miner_stats")
 	// Get subquery for the latest mining stats for this miners/software/algos.
 	subLatestStat :=
-		tx.Select("miner_id, miner_software_id, algorithm_id, MAX(id) AS latest_stat_id").
+		db.Select("miner_id, miner_software_id, algorithm_id, MAX(id) AS latest_stat_id").
 			Where("miner_id = ?", minerID).
 			Group("miner_id, miner_software_id, algorithm_id").
 			Table("miner_stats")
 	// Get subqyery for the latest pool stats for each algo pool.
 	subLatestPoolStat :=
-		tx.Select("MAX(id) AS id").
+		db.Select("MAX(id) AS id").
 			Group("pool_id").
 			Table("pool_stats")
 
@@ -228,7 +226,7 @@ func getBestSoftwareAlgo(tx *gorm.DB, minerID uint64, useEstimates uint8) MinerS
 	}
 	// Get all the mining stats for this miner and ensure they are also linked to a pool.
 	var bestMinerSoftwareAlgo MinerSoftwareAlgos
-	tx.Table("miners").
+	db.Table("miners").
 		Select("miner_software_algos.*").
 		Joins("INNER JOIN (?) latest_stat ON latest_stat.miner_id = miners.id", subLatestStat).
 		Joins("INNER JOIN miner_stats ON miner_stats.id = latest_stat.latest_stat_id").
@@ -246,7 +244,7 @@ func getBestSoftwareAlgo(tx *gorm.DB, minerID uint64, useEstimates uint8) MinerS
 		Joins("INNER JOIN (?) average_stat ON average_stat.miner_id = miners.id "+
 			"AND average_stat.miner_software_id = miner_softwares.id "+
 			"AND average_stat.algorithm_id = algorithms.id", subAvgWork).
-		Where("miners.id = ?", minerID).
+		Where("miners.id = ? AND (do_not_use IS NULL OR do_not_use = FALSE)", minerID).
 		Order(orderLogic).
 		Limit(1).
 		Find(&bestMinerSoftwareAlgo)
