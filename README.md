@@ -12,6 +12,10 @@ can automatically be determined/utilized.
 Pool provider statistics are required for profitability estimates/actuals. Before using this, please see the instructions at: https://github.com/GregoryUnderscore/Mining-Automation-ZergPool.com
 Also, miner statistics must be assessed. See the instructions at: https://github.com/GregoryUnderscore/Mining-Automation-Miner-Stats
 
+Sometimes a coin forks and has issues. In those situations, it can incorrectly show as the most profitable. If this
+happens, you can set the do_not_use field to true, and the automation program will skip it. This field is in the miner_software_algos table. Down the road, a utility may be created to make this easier for users that do not feel comfortable
+manually editing database tables.
+
 ### **Description**
 ZergPool provides several useful statistics for every pool they host. This allows a miner to calculate projections
 and possible profit opportunities. However, to properly calculate these projections, a miner's hash rate must be calculated
