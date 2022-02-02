@@ -95,12 +95,13 @@ func main() {
 	// Kick off the mining software for the first time.
 	proc := openProcess(filePath, params)
 
-	totalSecondsSlept := 0 // Tracks the total time slept to know when to check for optimization
+	secondsSlept := 0      // Tracks the total time slept to know when to check for optimization
 	processCheckTime := 30 // Wait 30 seconds in between activity checks
 	// Endlessly loop and check for better optimizations after the configured time.
 	for {
 		// Time to check for an optimization.
-		if totalSecondsSlept > 0 && (totalSecondsSlept%config.OptimizationCheckTime == 0) {
+		if secondsSlept > 0 && (secondsSlept%config.OptimizationCheckTime == 0) {
+			secondsSlept = 0 // Reset
 			optimizationAlgo := getBestSoftwareAlgo(db, minerID, config.UseEstimates)
 			// Is the best algo a change?
 			if optimizationAlgo.ID != thisMiner.MinerSoftwareAlgoID {
@@ -116,7 +117,7 @@ func main() {
 		} else {
 			// Wait 30 seconds and then validate the process still exists.
 			time.Sleep(time.Duration(processCheckTime) * time.Second)
-			totalSecondsSlept += processCheckTime
+			secondsSlept += processCheckTime
 			exists, _ := process.PidExists(int32(proc.Pid))
 			if exists {
 				continue
