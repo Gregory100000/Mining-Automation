@@ -39,7 +39,7 @@ type Config struct {
 	// If this is 1, the computer will be rebooted if the mining software dies unexpectedly.
 	RebootOnFailure uint8 `hcl:"rebootOnFailure"`
 	// Time in seconds to wait before checking for the next possible optimization.
-	OptimizationCheckTime uint32 `hcl:"optimizationCheckTime"`
+	OptimizationCheckTime int `hcl:"optimizationCheckTime"`
 
 	// E-mail Server Settings (SMTP)
 	EmailServer   string `hcl:"emailServer"`
@@ -95,12 +95,12 @@ func main() {
 	// Kick off the mining software for the first time.
 	proc := openProcess(filePath, params)
 
-	totalSecondsSlept := uint64(0) // Tracks the total time slept to know when to check for optimization
-	processCheckTime := 30         // Wait 30 seconds in between activity checks
+	totalSecondsSlept := 0 // Tracks the total time slept to know when to check for optimization
+	processCheckTime := 30 // Wait 30 seconds in between activity checks
 	// Endlessly loop and check for better optimizations after the configured time.
 	for {
 		// Time to check for an optimization.
-		if totalSecondsSlept > 0 && (totalSecondsSlept%uint64(config.OptimizationCheckTime) == 0) {
+		if totalSecondsSlept > 0 && (totalSecondsSlept%config.OptimizationCheckTime == 0) {
 			optimizationAlgo := getBestSoftwareAlgo(db, minerID, config.UseEstimates)
 			// Is the best algo a change?
 			if optimizationAlgo.ID != thisMiner.MinerSoftwareAlgoID {
@@ -116,7 +116,7 @@ func main() {
 		} else {
 			// Wait 30 seconds and then validate the process still exists.
 			time.Sleep(time.Duration(processCheckTime) * time.Second)
-			totalSecondsSlept += uint64(processCheckTime)
+			totalSecondsSlept += processCheckTime
 			exists, _ := process.PidExists(int32(proc.Pid))
 			if exists {
 				continue
