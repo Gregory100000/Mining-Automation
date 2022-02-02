@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2/hclsimple"
+	"github.com/shirou/gopsutil/process"
 	"gorm.io/gorm"
 
 	. "github.com/GregoryUnderscore/Mining-Automation-Shared/database"
@@ -94,19 +95,38 @@ func main() {
 	// Kick off the mining software for the first time.
 	proc := openProcess(filePath, params)
 
+	totalSecondsSlept := uint64(0) // Tracks the total time slept to know when to check for optimization
+	processCheckTime := 30         // Wait 30 seconds in between activity checks
 	// Endlessly loop and check for better optimizations after the configured time.
 	for {
-		// Wait in between optimization checks.
-		time.Sleep(time.Duration(config.OptimizationCheckTime) * time.Second)
+		// Time to check for an optimization.
+		if totalSecondsSlept > 0 && (totalSecondsSlept%uint64(config.OptimizationCheckTime) == 0) {
+			optimizationAlgo := getBestSoftwareAlgo(db, minerID, config.UseEstimates)
+			// Is the best algo a change?
+			if optimizationAlgo.ID != thisMiner.MinerSoftwareAlgoID {
+				proc.Kill() // Stop the current mining process.
+				proc.Wait() // Wait for everything to stop. Also releases resources.
+				// Generate parameters and get the file path for the next run.
+				// Also, set the active software/algo on the miner.
+				params, filePath = changeAlgoGetParams(db, &thisMiner, optimizationAlgo,
+					config)
+				// Kick off the mining software again.
+				proc = openProcess(filePath, params)
+			}
+		} else {
+			// Wait 30 seconds and then validate the process still exists.
+			time.Sleep(time.Duration(processCheckTime) * time.Second)
+			totalSecondsSlept += uint64(processCheckTime)
+			exists, _ := process.PidExists(int32(proc.Pid))
+			if exists {
+				continue
+			}
 
-		optimizationAlgo := getBestSoftwareAlgo(db, minerID, config.UseEstimates)
-		// Is the best algo a change?
-		if optimizationAlgo.ID != thisMiner.MinerSoftwareAlgoID {
-			proc.Kill() // Stop the current mining process.
-			proc.Wait() // Wait for everything to stop.
-			// Generate parameters and get the file path for the next run.
-			// Also, set the active software/algo on the miner.
-			params, filePath := changeAlgoGetParams(db, &thisMiner, optimizationAlgo, config)
+			// Process exited probably on error.
+			// Ensure everything has been cleared.
+			proc.Kill() // Stop any current mining process.
+			proc.Wait() // Wait for everything to stop. Also releases resources.
+
 			// Kick off the mining software again.
 			proc = openProcess(filePath, params)
 		}
