@@ -188,7 +188,7 @@ func changeAlgoGetParams(db *gorm.DB, miner *Miner, bestSoftwareAlgo MinerSoftwa
 	// requirements for actual operations.
 	// Create the full parameter list
 	params := []string{minerSoft.Name,
-		minerSoft.AlgoParam, algo.Name,
+		minerSoft.AlgoParam, bestSoftwareAlgo.Name,
 		minerSoft.PoolParam, poolURL,
 		minerSoft.WalletParam, config.Wallet,
 		minerSoft.PasswordParam, config.PoolPassword,
