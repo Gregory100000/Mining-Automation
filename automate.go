@@ -170,10 +170,13 @@ func changeAlgoGetParams(db *gorm.DB, miner *Miner, bestSoftwareAlgo MinerSoftwa
 	}
 	log.Println("Found new optimal software/algorithm...")
 	body := "Software: " + minerSoft.Name + "\r\n" +
-		"Algo: " + algo.Name + "\r\n"
+		"Algo: " + algo.Name + "\r\n" +
+		"Changed: " + time.Now().String() + "\r\n"
 	log.Print(body)
+	// Pull the latest version of the miner, in case the email setting has changed.
+	tx.First(miner, miner.ID)
 	// Send an e-mail notification if the server is set.
-	if len(config.EmailServer) > 0 {
+	if len(config.EmailServer) > 0 && *(miner.SendEmail) {
 		sendEmail(config.MinerName+": New Optimal", body, config)
 	}
 
