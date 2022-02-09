@@ -2,8 +2,8 @@
 
 ### **Summary**
 Enhance CPU/GPU miner profitability in coordination with the following utilities:
-Zergpool Statistics Storage - https://github.com/GregoryUnderscore/Mining-Automation-ZergPool.com
-Miner Statistics Assessor - https://github.com/GregoryUnderscore/Mining-Automation-Miner-Stats
+- Zergpool Statistics Storage - https://github.com/GregoryUnderscore/Mining-Automation-ZergPool.com
+- Miner Statistics Assessor - https://github.com/GregoryUnderscore/Mining-Automation-Miner-Stats
 
 After loading Zergpool statistics and assessing mining software (e.g. cpuminer-opt) on a miner, the most profitable algorithm 
 can automatically be determined/utilized.
