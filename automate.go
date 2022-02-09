@@ -94,6 +94,9 @@ func main() {
 	params, filePath := changeAlgoGetParams(db, &thisMiner, bestSoftwareAlgo, config)
 	// Kick off the mining software for the first time.
 	proc := openProcess(filePath, params)
+	defer func() { // Ensure process is eliminated on any panic/exit
+		proc.Kill()
+	}()
 
 	secondsSlept := 0      // Tracks the total time slept to know when to check for optimization
 	processCheckTime := 30 // Wait 30 seconds in between activity checks
@@ -107,6 +110,17 @@ func main() {
 			if optimizationAlgo.ID != thisMiner.MinerSoftwareAlgoID {
 				proc.Kill() // Stop the current mining process.
 				proc.Wait() // Wait for everything to stop. Also releases resources.
+				// Check if the process still exists. There were scenarios where the process
+				// did not stop immediately. It needs to verifiably stop before opening the
+				// next process.
+				exists, _ := process.PidExists(int32(proc.Pid))
+				for exists {
+					proc.Kill() // Stop the current mining process.
+					proc.Wait() // Wait for everything to stop. Also releases resources.
+					// Give it time to stop.
+					time.Sleep(time.Duration(10) * time.Second)
+					exists, _ = process.PidExists(int32(proc.Pid))
+				}
 				// Generate parameters and get the file path for the next run.
 				// Also, set the active software/algo on the miner.
 				params, filePath = changeAlgoGetParams(db, &thisMiner, optimizationAlgo,
