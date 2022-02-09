@@ -115,6 +115,8 @@ func main() {
 				// next process.
 				exists, _ := process.PidExists(int32(proc.Pid))
 				for exists {
+					log.Println("Previous mining process has not stopped. " +
+						"Attempting to kill the process again...")
 					proc.Kill() // Stop the current mining process.
 					proc.Wait() // Wait for everything to stop. Also releases resources.
 					// Give it time to stop.
