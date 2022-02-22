@@ -114,7 +114,23 @@ func main() {
 				// did not stop immediately. It needs to verifiably stop before opening the
 				// next process.
 				exists, _ := process.PidExists(int32(proc.Pid))
+				timesKilled := 0      // Prevent endless loops
+				maxKillNumber := 1000 // Stop after 1,000 attempts
 				for exists {
+					timesKilled++
+					// If attempted to kill it 1,000 times, exit and notify via e-mail
+					// if possible.
+					if timesKilled > maxKillNumber {
+						issue := "Fatal error: Unable to close inferior process " +
+							"after 1,000 attempts."
+						// Send an e-mail notification if the server is set.
+						if len(config.EmailServer) > 0 {
+							sendEmail(issue,
+								"Please review the miner for details and "+
+									"report this issue.", config)
+						}
+						log.Fatal(issue) // Force exit
+					}
 					log.Println("Previous mining process has not stopped. " +
 						"Attempting to kill the process again...")
 					proc.Kill() // Stop the current mining process.
