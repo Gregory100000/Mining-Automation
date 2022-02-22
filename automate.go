@@ -267,9 +267,9 @@ func getBestSoftwareAlgo(db *gorm.DB, minerID uint64, useEstimates uint8) MinerS
 			Where("miner_id = ?", minerID).
 			Group("miner_id, miner_software_id, algorithm_id").
 			Table("miner_stats")
-	// Get subqyery for the latest pool stats for each algo pool.
+	// Get subquery for the latest pool stats for each algo pool.
 	subLatestPoolStat :=
-		db.Select("MAX(id) AS id").
+		db.Select("MAX(id) AS id, pool_id").
 			Group("pool_id").
 			Table("pool_stats")
 
@@ -292,9 +292,9 @@ func getBestSoftwareAlgo(db *gorm.DB, minerID uint64, useEstimates uint8) MinerS
 			"AND miner_software_algos.miner_software_id = miner_softwares.id").
 		// Inner join these to the pool algos.
 		Joins("INNER JOIN pools ON pools.algorithm_id = algorithms.id").
-		Joins("INNER JOIN pool_stats ON pool_stats.pool_id = pools.id").
-		Joins("INNER JOIN (?) latest_pool_stat ON latest_pool_stat.id = pool_stats.id",
+		Joins("INNER JOIN (?) latest_pool_stat ON latest_pool_stat.pool_id = pools.id",
 			subLatestPoolStat).
+		Joins("INNER JOIN pool_stats ON pool_stats.id = latest_pool_stat.id").
 		// Get the latest Bitcoin price.
 		Joins("INNER JOIN coin_prices ON pool_stats.coin_price_id = coin_prices.id").
 		Joins("INNER JOIN (?) average_stat ON average_stat.miner_id = miners.id "+
