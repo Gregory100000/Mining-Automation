@@ -152,6 +152,8 @@ func main() {
 			secondsSlept += processCheckTime
 			exists, _ := process.PidExists(int32(proc.Pid))
 			if exists {
+				// Store a check-in instant to indicate this is still active.
+				checkIn(db, &thisMiner)
 				continue
 			}
 
@@ -247,6 +249,14 @@ func changeAlgoGetParams(db *gorm.DB, miner *Miner, bestSoftwareAlgo MinerSoftwa
 	return params, minerSoftDetails.FilePath
 }
 
+// Store a check-in instant to indicate that this miner is still active.
+// @param db - The active database connection
+// @param thisMiner - The active miner record
+func checkIn(db *gorm.DB, thisMiner *Miner) {
+	thisMiner.LastCheckIn = time.Now()
+	db.Save(thisMiner)
+}
+
 // Determine the best software/algo for a miner by examining the most profitable combination.
 // @param tx - The active database connection
 // @param minerID - The ID for the active miner
@@ -313,6 +323,25 @@ func getBestSoftwareAlgo(db *gorm.DB, minerID uint64, useEstimates uint8) MinerS
 	return bestMinerSoftwareAlgo
 }
 
+// Open a process and get back the pointer to it.
+// @param filePath - The path to the executable to open
+// @param params - The parameters to use for the process
+func openProcess(filePath string, params []string) *os.Process {
+	output := []*os.File{os.Stdin, os.Stdout, os.Stderr}
+	// Open the miner program in a child process.
+	attr := &os.ProcAttr{
+		"",
+		nil,
+		output,
+		&syscall.SysProcAttr{},
+	}
+	proc, error := os.StartProcess(filePath, params, attr)
+	if error != nil {
+		log.Fatalf("Unable to start mining software.\n", error)
+	}
+	return proc
+}
+
 // Send an e-mail using the configuration to obtain login details, recipient, etc.
 // @param subject - The subject for the e-mail
 // @param body - The body of the e-mail
@@ -333,23 +362,4 @@ func sendEmail(subject string, body string, config Config) {
 	if err != nil { // Do not fatally error in case the e-mail server is just temporarily down.
 		log.Printf("Problem sending e-mail notification: \n", err)
 	}
-}
-
-// Open a process and get back the pointer to it.
-// @param filePath - The path to the executable to open
-// @param params - The parameters to use for the process
-func openProcess(filePath string, params []string) *os.Process {
-	output := []*os.File{os.Stdin, os.Stdout, os.Stderr}
-	// Open the miner program in a child process.
-	attr := &os.ProcAttr{
-		"",
-		nil,
-		output,
-		&syscall.SysProcAttr{},
-	}
-	proc, error := os.StartProcess(filePath, params, attr)
-	if error != nil {
-		log.Fatalf("Unable to start mining software.\n", error)
-	}
-	return proc
 }
