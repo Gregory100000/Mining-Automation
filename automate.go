@@ -215,7 +215,8 @@ func changeAlgoGetParams(db *gorm.DB, miner *Miner, bestSoftwareAlgo MinerSoftwa
 	}
 
 	miner.MinerSoftwareAlgoID = bestSoftwareAlgo.ID
-	tx.Save(miner) // Save the algo change.
+	miner.OfflineNoticeSent = false // Clear this out, since this is online.
+	tx.Save(miner)                  // Save the algo change.
 
 	// Generate pool URL.
 	poolURL := GeneratePoolURL(tx, bestSoftwareAlgo.AlgorithmID)
