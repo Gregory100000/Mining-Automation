@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/smtp"
 	"os"
 	"strings"
 	"syscall"
@@ -15,6 +14,7 @@ import (
 
 	. "github.com/GregoryUnderscore/Mining-Automation-Shared/database"
 	. "github.com/GregoryUnderscore/Mining-Automation-Shared/models"
+	. "github.com/GregoryUnderscore/Mining-Automation-Shared/utils/email"
 	. "github.com/GregoryUnderscore/Mining-Automation-Shared/utils/pools"
 )
 
@@ -125,9 +125,12 @@ func main() {
 							"after 1,000 attempts."
 						// Send an e-mail notification if the server is set.
 						if len(config.EmailServer) > 0 {
-							sendEmail(issue,
+							SendEmail(issue,
 								"Please review the miner for details and "+
-									"report this issue.", config)
+									"report this issue.",
+								config.EmailUser, config.EmailPassword,
+								config.EmailServer, config.EmailPort,
+								config.EmailTo, config.EmailFrom)
 						}
 						log.Fatal(issue) // Force exit
 					}
@@ -211,7 +214,8 @@ func changeAlgoGetParams(db *gorm.DB, miner *Miner, bestSoftwareAlgo MinerSoftwa
 	tx.First(miner, miner.ID)
 	// Send an e-mail notification if the server is set.
 	if len(config.EmailServer) > 0 && *(miner.SendEmail) {
-		sendEmail(config.MinerName+": New Optimal", body, config)
+		SendEmail(config.MinerName+": New Optimal", body, config.EmailUser, config.EmailPassword,
+			config.EmailServer, config.EmailPort, config.EmailTo, config.EmailFrom)
 	}
 
 	miner.MinerSoftwareAlgoID = bestSoftwareAlgo.ID
@@ -341,26 +345,4 @@ func openProcess(filePath string, params []string) *os.Process {
 		log.Fatalf("Unable to start mining software.\n", error)
 	}
 	return proc
-}
-
-// Send an e-mail using the configuration to obtain login details, recipient, etc.
-// @param subject - The subject for the e-mail
-// @param body - The body of the e-mail
-// @param config - The configuration object with all the e-mail login details etc.
-func sendEmail(subject string, body string, config Config) {
-	// Create the authentication object
-	auth := smtp.PlainAuth("", config.EmailUser, config.EmailPassword, config.EmailServer)
-
-	// Prepare the e-mail for transmission.
-	to := []string{config.EmailTo}
-	msg := []byte("To: " + config.EmailTo + "\r\n" +
-		"From: " + config.EmailFrom + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"\r\n" + body + "\r\n")
-
-	// Transmit.
-	err := smtp.SendMail(config.EmailServer+":"+config.EmailPort, auth, config.EmailFrom, to, msg)
-	if err != nil { // Do not fatally error in case the e-mail server is just temporarily down.
-		log.Printf("Problem sending e-mail notification: \n", err)
-	}
 }

@@ -3,9 +3,10 @@ module Mining-Automation
 go 1.17
 
 require (
-	github.com/GregoryUnderscore/Mining-Automation-Shared/database v0.0.0-20220316162839-1d9ffb221012
-	github.com/GregoryUnderscore/Mining-Automation-Shared/models v0.0.0-20220316162839-1d9ffb221012
-	github.com/GregoryUnderscore/Mining-Automation-Shared/utils/pools v0.0.0-20220316162839-1d9ffb221012
+	github.com/GregoryUnderscore/Mining-Automation-Shared/database v0.0.0-20220316173952-394c63fcf88d
+	github.com/GregoryUnderscore/Mining-Automation-Shared/models v0.0.0-20220316173952-394c63fcf88d
+	github.com/GregoryUnderscore/Mining-Automation-Shared/utils/email v0.0.0-20220316173952-394c63fcf88d
+	github.com/GregoryUnderscore/Mining-Automation-Shared/utils/pools v0.0.0-20220316173952-394c63fcf88d
 	github.com/hashicorp/hcl/v2 v2.11.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	gorm.io/gorm v1.22.5
